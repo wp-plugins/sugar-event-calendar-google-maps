@@ -3,19 +3,54 @@
 Plugin Name: Sugar Calendar - Maps
 Plugin URL: http://pippinsplugins.com/sugar-calendar-maps
 Description: Adds easy Google maps to Sugar Event Calendar
-Version: 1.0
+Version: 1.1
 Author: Pippin Williamson
 Author URI: http://pippinsplugins.com
 Contributors: mordauk
 */
 
 
+/**
+ * SLoad plugin text domain
+ *
+ * @access      private
+ * @since       1.1
+ * @return      void
+*/
+
+function sc_map_load_textdomain() {
+
+	// Set filter for plugin's languages directory
+	$sc_maps_lang_dir = dirname( plugin_basename( __FILE__ ) ) . '/languages/';
+
+	// Traditional WordPress plugin locale filter
+	$locale        = apply_filters( 'plugin_locale',  get_locale(), 'pippin_sc_maps' );
+	$mofile        = sprintf( '%1$s-%2$s.mo', 'pippin_sc_maps', $locale );
+
+	// Setup paths to current locale file
+	$mofile_local  = $sc_maps_lang_dir . $mofile;
+	$mofile_global = WP_LANG_DIR . '/sugar-calendar-maps/' . $mofile;
+
+	if ( file_exists( $mofile_global ) ) {
+		// Look in global /wp-content/languages/sugar-calendar-maps folder
+		load_textdomain( 'pippin_sc_maps', $mofile_global );
+	} elseif ( file_exists( $mofile_local ) ) {
+		// Look in local /wp-content/plugins/sugar-event-calendar-google-maps/languages/ folder
+		load_textdomain( 'pippin_sc_maps', $mofile_local );
+	} else {
+		// Load the default language files
+		load_plugin_textdomain( 'pippin_sc_maps', false, $sc_maps_lang_dir );
+	}
+
+}
+add_action( 'init', 'sc_map_load_textdomain' );
+
 
 /**
  * Show admin address field
  *
  * @access      private
- * @since       1.0 
+ * @since       1.0
  * @return      void
 */
 
@@ -52,13 +87,13 @@ add_action('sc_event_meta_box_after', 'sc_maps_add_forms_meta_box');
  * Save data from meta box.
  *
  * @access      private
- * @since       1.0 
+ * @since       1.0
  * @return      void
 */
 
 function sc_maps_meta_box_save( $event_id ) {
 	global $post;
-	
+
 	// verify nonce
 	if (!isset($_POST['sc_maps_meta_box_nonce']) || !wp_verify_nonce($_POST['sc_maps_meta_box_nonce'], basename(__FILE__))) {
 		return $event_id;
@@ -66,7 +101,7 @@ function sc_maps_meta_box_save( $event_id ) {
 
 	// check autosave
 	if ( (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) || ( defined('DOING_AJAX') && DOING_AJAX) || isset($_REQUEST['bulk_edit']) ) return $event_id;
-	
+
 	//don't save if only a revision
 	if ( isset($post->post_type) && $post->post_type == 'revision' ) return $event_id;
 
@@ -74,10 +109,10 @@ function sc_maps_meta_box_save( $event_id ) {
 	if (!current_user_can('edit_post', $event_id)) {
 		return $event_id;
 	}
-		
+
 	$address = sanitize_text_field( $_POST['sc_map_address'] );
 	update_post_meta($event_id, 'sc_map_address', $address);
-		
+
 }
 add_action('save_post', 'sc_maps_meta_box_save');
 
@@ -86,7 +121,7 @@ add_action('save_post', 'sc_maps_meta_box_save');
  * Displays the event map
  *
  * @access      private
- * @since       1.0 
+ * @since       1.0
  * @return      void
 */
 
@@ -125,7 +160,7 @@ add_action( 'sc_after_event_content', 'sc_maps_show_map' );
  * Loads Google Map API on single event pages
  *
  * @access      private
- * @since       1.0 
+ * @since       1.0
  * @return      void
 */
 
@@ -143,7 +178,7 @@ add_action( 'wp_enqueue_scripts', 'sc_maps_load_scripts' );
  * Coordinates are cached using transients and a hash of the address
  *
  * @access      private
- * @since       1.0 
+ * @since       1.0
  * @return      void
 */
 
