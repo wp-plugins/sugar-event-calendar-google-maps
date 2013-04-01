@@ -3,7 +3,7 @@
 Plugin Name: Sugar Calendar - Maps
 Plugin URL: http://pippinsplugins.com/sugar-calendar-maps
 Description: Adds easy Google maps to Sugar Event Calendar
-Version: 1.1
+Version: 1.2
 Author: Pippin Williamson
 Author URI: http://pippinsplugins.com
 Contributors: mordauk
@@ -183,50 +183,75 @@ add_action( 'wp_enqueue_scripts', 'sc_maps_load_scripts' );
 */
 
 function sc_maps_get_coordinates($address, $force_refresh = false) {
-    $address_hash = md5($address);
+    $address_hash = md5( $address );
 
-    if ($force_refresh || ($coordinates = get_transient($address_hash)) === false) {
-    	$url = 'http://maps.google.com/maps/geo?q=' . urlencode($address) . '&output=xml';
+    $coordinates = get_transient( $address_hash );
 
-     	$response = wp_remote_get( $url );
+    if ($force_refresh || $coordinates === false) {
+
+    	$args       = array( 'address' => urlencode( $address ), 'sensor' => 'false' );
+    	$url        = add_query_arg( $args, 'http://maps.googleapis.com/maps/api/geocode/json' );
+     	$response 	= wp_remote_get( $url );
 
      	if( is_wp_error( $response ) )
      		return;
 
-     	$xml = wp_remote_retrieve_body( $response );
+     	$data = wp_remote_retrieve_body( $response );
 
-     	if( is_wp_error( $xml ) )
+     	if( is_wp_error( $data ) )
      		return;
 
-		if ($response['response']['code'] == 200) {
+		if ( $response['response']['code'] == 200 ) {
 
-			$data = new SimpleXMLElement($xml);
+			$data = json_decode( $data );
 
-			if ($data->Response->Status->code == 200) {
-			  	$coordinates = $data->Response->Placemark->Point->coordinates;
+			if ( $data->status === 'OK' ) {
 
-			  	//Placemark->Point->coordinates;
-			  	$coordinates = explode(',', $coordinates[0]);
-			  	$cache_value['lat'] = $coordinates[1];
-			  	$cache_value['lng'] = $coordinates[0];
-			  	$cache_value['address'] = (string) $data->Response->Placemark->address[0];
+			  	$coordinates = $data->results[0]->geometry->location;
+
+			  	$cache_value['lat'] 	= $coordinates->lat;
+			  	$cache_value['lng'] 	= $coordinates->lng;
+			  	$cache_value['address'] = (string) $data->results[0]->formatted_address;
 
 			  	// cache coordinates for 3 months
 			  	set_transient($address_hash, $cache_value, 3600*24*30*3);
 			  	$data = $cache_value;
-			} elseif ($data->Response->Status->code == 602) {
-			  	return 'Unable to parse entered address. API response code: ' . @$data->Response->Status->code;
+
+			} elseif ( $data->status === 'ZERO_RESULTS' ) {
+			  	return __( 'No location found for the entered address.', 'pw-maps' );
+			} elseif( $data->status === 'INVALID_REQUEST' ) {
+			   	return __( 'Invalid request. Did you enter an address?', 'pw-maps' );
 			} else {
-			   	return 'XML parsing error. Please try again later. API response code: ' . @$data->Response->Status->code;
+				return __( 'Something went wrong while retrieving your map, please ensure you have entered the short code correctly.', 'pw-maps' );
 			}
 
 		} else {
-		 	return 'Unable to contact Google API service.';
+		 	return __( 'Unable to contact Google API service.', 'pw-maps' );
 		}
+
     } else {
-       // Cache the results
-       $data = get_transient($address_hash);
+       // return cached results
+       $data = $coordinates;
     }
 
     return $data;
 }
+
+
+/**
+ * Fixes a problem with responsive themes
+ *
+ * @access      private
+ * @since       1.2
+ * @return      void
+*/
+
+function sc_maps_map_css() {
+	echo '<style type="text/css">/* =Responsive Map fix
+-------------------------------------------------------------- */
+.sc-map-canvas img {
+	max-width: none;
+}</style>';
+
+}
+add_action( 'wp_head', 'sc_maps_map_css' );
