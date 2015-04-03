@@ -5,7 +5,7 @@ Contributors: mordauk
 Donate link: http://pippinsplugins.com/support-the-site
 Tags: Google Maps, maps, Events, Event Calendar, Sugar Event Calendar, Pippin Williamson, Pippin's Plugins, pippinsplugins, gravityforms
 Requires at least: 3.2
-Tested up to: 3.6
+Tested up to: 4.2
 Stable Tag: 1.2
 
 Adds simple Google Maps to events in Sugar Event Calendar
